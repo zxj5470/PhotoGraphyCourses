@@ -21,6 +21,13 @@ import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.github.zxj5470.android_kotlin_ext.ui.view.visible
 import com.github.zxj5470.photography.util.SingleXT
+import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem
+import com.mikepenz.materialdrawer.Drawer
+import com.mikepenz.materialdrawer.model.SecondaryDrawerItem
+import com.mikepenz.materialdrawer.model.DividerDrawerItem
+import com.mikepenz.materialdrawer.DrawerBuilder
+import com.mikepenz.materialdrawer.model.PrimaryDrawerItem
+import java.text.FieldPosition
 
 
 class MainActivity : AppCompatActivity() {
@@ -36,34 +43,15 @@ class MainActivity : AppCompatActivity() {
 
     var currentPage: Int = 0
 
-    private val mOnNavigationItemSelectedListener = BottomNavigationView.OnNavigationItemSelectedListener { item ->
-        when (item.itemId) {
-            R.id.navigation_home -> {
-                click0()
-                return@OnNavigationItemSelectedListener true
-            }
-            R.id.navigation_dashboard -> {
-                click1()
-                return@OnNavigationItemSelectedListener true
-            }
-            R.id.navigation_notifications -> {
-                click2()
-                return@OnNavigationItemSelectedListener true
-            }
-        }
-        false
-    }
-
     lateinit var danXuanTis: List<String>
     lateinit var panDuanTis: List<String>
     lateinit var duoXuanTis: List<String>
 
     lateinit var currentResult: String
 
-    lateinit var navigation: BottomNavigationView
-
     lateinit var sp: SharedPreferences
     lateinit var editor: SharedPreferences.Editor
+    lateinit var thisDrawer:Drawer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -170,13 +158,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        val bottom = BottomNavigationView(this@MainActivity)
-        val param = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        param.gravity = Gravity.BOTTOM
-        a.addView(bottom, param)
-        bottom.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
+
+        thisDrawer = DrawerBuilder()
+                .withActivity(this)
+                .addDrawerItems()
+                .withOnDrawerItemClickListener { view, position, drawerItem ->false
+                }
+                .build()
     }
 
     fun initTi() {
@@ -185,8 +173,7 @@ class MainActivity : AppCompatActivity() {
         duoXuanTis = readFileLines(R.raw.single_xt)
     }
 
-    fun click0() {
-        val num = Random().nextInt(danXuanTis.size)
+    fun click0(num: Int=Random().nextInt(danXuanTis.size)) {
         setColorBack()
         sample = danXuanTis[num].toTi()
 
@@ -203,6 +190,20 @@ class MainActivity : AppCompatActivity() {
 
         currentResult = sample.result
         currentPage = 0
+        thisDrawer.removeAllItems()
+        thisDrawer.addItems(DividerDrawerItem(),DividerDrawerItem(),DividerDrawerItem(),DividerDrawerItem())
+        for (i in 0..200){
+            val ret=sp.getInt("$i",0)
+            if(ret>0){
+                val item=PrimaryDrawerItem().withIdentifier((i+1).toLong()).withName("${i+1}"+danXuanTis[i].toTi().title)
+                item.mOnDrawerItemClickListener= Drawer.OnDrawerItemClickListener { view, position, drawerItem ->
+                    click0(i)
+                    false
+                }
+                thisDrawer.addItem(item)
+            }
+        }
+
     }
 
 
