@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         initShared()
         init()
         initTi()
-        click0(200)
+        click0()
     }
 
     private fun initShared() {
@@ -181,14 +181,16 @@ class MainActivity : AppCompatActivity() {
 
     fun initTi() {
         danXuanTis = readFileLines(R.raw.single_xt)
-        panDuanTis = readFileLines(R.raw.single_xt)
-        duoXuanTis = readFileLines(R.raw.single_xt)
+        panDuanTis = readFileLines(R.raw.pdt)
+        duoXuanTis = readFileLines(R.raw.multy_xt)
         totalNumber = danXuanTis.size + panDuanTis.size
+        println()
 
     }
 
     fun click0(num: Int = Random().nextInt(totalNumber)) {
         setColorBack()
+        contentText.text=""
 
         if (num < danXuanTis.size) {
 
@@ -221,8 +223,6 @@ class MainActivity : AppCompatActivity() {
             currentResult = trueOrFalseSample.result
             currentPage = 0
         }
-
-        println("$num,是什么题目？$currentStatus")
 
         thisDrawer.removeAllItems()
         var temp: SingleXT
