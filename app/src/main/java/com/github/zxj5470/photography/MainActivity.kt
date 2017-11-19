@@ -1,36 +1,31 @@
 package com.github.zxj5470.photography
 
-import android.app.ActionBar
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
-import android.support.design.widget.BottomNavigationView
 import android.support.v7.app.AppCompatActivity
-import android.view.Gravity
-import android.view.View
 import android.view.ViewManager
-import android.widget.LinearLayout
 import android.widget.TextView
-import com.github.zxj5470.photography.util.readFileLines
-import com.github.zxj5470.photography.util.toTi
 import org.jetbrains.anko.*
-import org.jetbrains.anko.custom.ankoView
 import org.jetbrains.anko.sdk25.coroutines.onClick
 import java.util.*
-import android.R.id.edit
-import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.github.zxj5470.android_kotlin_ext.ui.view.visible
-import com.github.zxj5470.photography.util.SingleXT
-import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem
+import com.github.zxj5470.photography.util.*
 import com.mikepenz.materialdrawer.Drawer
-import com.mikepenz.materialdrawer.model.SecondaryDrawerItem
 import com.mikepenz.materialdrawer.model.DividerDrawerItem
 import com.mikepenz.materialdrawer.DrawerBuilder
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem
-import java.text.FieldPosition
 
 
 class MainActivity : AppCompatActivity() {
+
+    enum class PGStatus {
+        Dan, Duo, Pan
+    }
+
+    var currentStatus: PGStatus = PGStatus.Dan
+
 
     lateinit var titleText: TextView
     lateinit var AText: TextView
@@ -39,9 +34,11 @@ class MainActivity : AppCompatActivity() {
     lateinit var DText: TextView
     lateinit var contentText: TextView
     lateinit var infoText: TextView
-    lateinit var sample: SingleXT
+    lateinit var singleSample: SingleXT
+    lateinit var trueOrFalseSample: PanDuanTi
 
     var currentPage: Int = 0
+    var totalNumber: Int = 0
 
     lateinit var danXuanTis: List<String>
     lateinit var panDuanTis: List<String>
@@ -51,14 +48,14 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var sp: SharedPreferences
     lateinit var editor: SharedPreferences.Editor
-    lateinit var thisDrawer:Drawer
+    lateinit var thisDrawer: Drawer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         initShared()
         init()
         initTi()
-        click0()
+        click0(200)
     }
 
     private fun initShared() {
@@ -84,8 +81,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun init() {
-        val a = verticalLayout {
-
+        verticalLayout {
             padding = dip(30)
             titleText = textView50()
             AText = textView50()
@@ -102,23 +98,42 @@ class MainActivity : AppCompatActivity() {
             }
 
             fun f() {
-                val num = sp.getInt(sample.id.toString(), 0)
-                editor = sp.edit()
-                editor.putInt(sample.id.toString(), num + 1)
-                editor.commit()
+                when (currentStatus) {
+                    PGStatus.Dan -> {
+                        val num = sp.getInt((singleSample.id - 1).toString(), 0)
+                        editor = sp.edit()
+                        editor.putInt((singleSample.id - 1).toString(), num + 1)
+                        editor.commit()
 
+                        contentText.text = "回答正确"
+                        contentText.textSize = 22f
+                        contentText.setTextColor(green)
+                        contentText.visible = true
+                        val times = sp.getInt((singleSample.id - 1).toString(), 0)
+                        infoText.text = "题目：${singleSample.id}/${danXuanTis.size},已做过 $times 次"
+                    }
+                    PGStatus.Pan -> {
+                        val num = sp.getInt((trueOrFalseSample.id - 1).toString(), 0)
+                        editor = sp.edit()
+                        editor.putInt((trueOrFalseSample.id - 1).toString(), num + 1)
+                        editor.commit()
 
-                contentText.text = "回答正确"
-                contentText.textSize = 22f
-                contentText.setTextColor(green)
-                contentText.visible = true
-                val times = sp.getInt(sample.id.toString(), 0)
-                infoText.text = "题目：${sample.id}/${danXuanTis.size},已做过 $times 次"
+                        contentText.text = "回答正确"
+                        contentText.textSize = 22f
+                        contentText.setTextColor(green)
+                        contentText.visible = true
+                        val times = sp.getInt((trueOrFalseSample.id - 1).toString(), 0)
+                        infoText.text = "题目：${trueOrFalseSample.id}/${panDuanTis.size},已做过 $times 次"
+                    }
+                    else -> {
+                    }
+                }
+
             }
 
 
             AText.setOnClickListener {
-                if (currentResult == "A") {
+                if (currentResult == "A" || currentResult == "√") {
                     setColorBack()
                     AText.setTextColor(green)
                     f()
@@ -128,7 +143,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             BText.setOnClickListener {
-                if (currentResult == "B") {
+                if (currentResult == "B" || currentResult == "×") {
                     setColorBack()
                     f()
                     BText.setTextColor(green)
@@ -161,9 +176,6 @@ class MainActivity : AppCompatActivity() {
 
         thisDrawer = DrawerBuilder()
                 .withActivity(this)
-                .addDrawerItems()
-                .withOnDrawerItemClickListener { view, position, drawerItem ->false
-                }
                 .build()
     }
 
@@ -171,41 +183,79 @@ class MainActivity : AppCompatActivity() {
         danXuanTis = readFileLines(R.raw.single_xt)
         panDuanTis = readFileLines(R.raw.single_xt)
         duoXuanTis = readFileLines(R.raw.single_xt)
+        totalNumber = danXuanTis.size + panDuanTis.size
+
     }
 
-    fun click0(num: Int=Random().nextInt(danXuanTis.size)) {
+    fun click0(num: Int = Random().nextInt(totalNumber)) {
         setColorBack()
-        sample = danXuanTis[num].toTi()
 
-        titleText.text = "题目 ${sample.id} : " + sample.title
+        if (num < danXuanTis.size) {
 
-        AText.text = "A. " + sample.A
-        BText.text = "B. " + sample.B
-        CText.text = "C. " + sample.C
-        DText.text = "D. " + sample.D
+            currentStatus = PGStatus.Dan
+            singleSample = danXuanTis[num].toTi()
 
-        val times = sp.getInt(sample.id.toString(), 0)
+            titleText.text = "题目 ${singleSample.id} : " + singleSample.title
+            AText.text = "A. " + singleSample.A
+            BText.text = "B. " + singleSample.B
+            CText.text = "C. " + singleSample.C
+            DText.text = "D. " + singleSample.D
 
-        infoText.text = "题目：${sample.id}/${danXuanTis.size},已做过 $times 次"
+            val times = sp.getInt((singleSample.id - 1).toString(), 0)
+            infoText.text = "题目：${singleSample.id}/$totalNumber,已做过 $times 次"
+            currentResult = singleSample.result
 
-        currentResult = sample.result
-        currentPage = 0
+
+        } else {
+            currentStatus = PGStatus.Pan
+            trueOrFalseSample = panDuanTis[num - danXuanTis.size].toPanDuanTi()
+
+            titleText.text = "题目 ${trueOrFalseSample.id} : " + trueOrFalseSample.title
+            AText.text = "√"
+            BText.text = "×"
+            CText.text = ""
+            DText.text = ""
+
+            val times = sp.getInt((trueOrFalseSample.id - 1).toString(), 0)
+            infoText.text = "题目：${trueOrFalseSample.id}/${panDuanTis.size},已做过 $times 次"
+            currentResult = trueOrFalseSample.result
+            currentPage = 0
+        }
+
+        println("$num,是什么题目？$currentStatus")
+
         thisDrawer.removeAllItems()
-        thisDrawer.addItems(DividerDrawerItem(),DividerDrawerItem(),DividerDrawerItem(),DividerDrawerItem())
-        for (i in 0..200){
-            val ret=sp.getInt("$i",0)
-            if(ret>0){
-                val item=PrimaryDrawerItem().withIdentifier((i+1).toLong()).withName("${i+1}"+danXuanTis[i].toTi().title)
-                item.mOnDrawerItemClickListener= Drawer.OnDrawerItemClickListener { view, position, drawerItem ->
-                    click0(i)
+        var temp: SingleXT
+        thisDrawer.addItems(DividerDrawerItem(), DividerDrawerItem(), DividerDrawerItem(), DividerDrawerItem())
+        for (i in 0..danXuanTis.size) {
+            val ret = sp.getInt("$i", 0)
+            if (ret > 0) {
+                temp = danXuanTis[i].toTi()
+                val item = PrimaryDrawerItem().withIdentifier(i.toLong()).withName("${temp.id}:${temp.title}")
+                item.mOnDrawerItemClickListener = Drawer.OnDrawerItemClickListener { view, position, drawerItem ->
+                    click0(drawerItem.identifier.toInt())
                     false
                 }
                 thisDrawer.addItem(item)
             }
         }
 
-    }
+        var tp:PanDuanTi
+        for (i in 0..panDuanTis.size) {
+            val ret = sp.getInt("${danXuanTis.size+i}", 0)
+            if (ret > 0) {
+                tp = panDuanTis[i].toPanDuanTi()
+                val item = PrimaryDrawerItem().withIdentifier((i + danXuanTis.size).toLong()).withName("${tp.id}:${tp.title}")
+                item.mOnDrawerItemClickListener = Drawer.OnDrawerItemClickListener { view, position, drawerItem ->
+                    click0(drawerItem.identifier.toInt())
+                    false
+                }
+                thisDrawer.addItem(item)
+            }
+        }
 
+
+    }
 
     fun elseF() {
         contentText.visible = false
